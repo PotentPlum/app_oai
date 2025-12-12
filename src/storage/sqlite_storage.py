@@ -63,6 +63,15 @@ class SQLiteStorage:
                     ok INTEGER NOT NULL,
                     message TEXT
                 );
+                CREATE TABLE IF NOT EXISTS fetch_source_log(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_name TEXT NOT NULL,
+                    started_at_utc TEXT NOT NULL,
+                    finished_at_utc TEXT,
+                    ok INTEGER NOT NULL,
+                    message TEXT,
+                    item_count INTEGER
+                );
                 """
             )
             self.conn.commit()
@@ -137,6 +146,38 @@ class SQLiteStorage:
                 (started, finished, int(ok), message),
             )
             self.conn.commit()
+
+    def log_source_run(
+        self,
+        source_name: str,
+        started: str,
+        finished: str,
+        ok: bool,
+        message: str,
+        item_count: int,
+    ) -> None:
+        with closing(self.conn.cursor()) as cur:
+            cur.execute(
+                """
+                INSERT INTO fetch_source_log(source_name, started_at_utc, finished_at_utc, ok, message, item_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (source_name, started, finished, int(ok), message, item_count),
+            )
+            self.conn.commit()
+
+    def latest_source_runs(self, limit: int = 50):
+        with closing(self.conn.cursor()) as cur:
+            cur.execute(
+                """
+                SELECT source_name, started_at_utc, finished_at_utc, ok, message, item_count
+                FROM fetch_source_log
+                ORDER BY started_at_utc DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            return cur.fetchall()
 
     def latest_env_rows(self, location_key: str, limit: int = 48) -> List[Tuple]:
         with closing(self.conn.cursor()) as cur:
