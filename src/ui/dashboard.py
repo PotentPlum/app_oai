@@ -144,7 +144,11 @@ class Dashboard(tk.Tk):
         self._refresh_db_status()
 
     def _update_status(self, text: str) -> None:
-        self._status_var.set(text)
+        if threading.current_thread() is threading.main_thread():
+            self._status_var.set(text)
+        else:
+            # Marshal updates to the Tk event loop to avoid cross-thread Tkinter access
+            self.after(0, lambda: self._status_var.set(text))
 
     def _refresh_db_status(self) -> None:
         self.mongo_status.config(text=f"Mongo: {'connected' if self.service.mongo.available else 'unavailable'}")
