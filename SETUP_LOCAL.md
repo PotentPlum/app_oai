@@ -42,6 +42,18 @@
 - SQLite curated DB: `ecopulse.sqlite` in the project root.
 - MongoDB raw landing: Docker volume `mongo_data` (managed by Docker Compose).
 
+## Running Tests
+- Make sure the virtual environment is active and dependencies are installed (`pip install -r requirements.txt`).
+- Start MongoDB (`docker compose up -d`) so the MongoDB-specific tests run instead of being skipped.
+- Execute the database checks from the project root:
+  ```bash
+  python -m unittest discover -s tests -p "test_*.py"
+  ```
+
+## Inspecting Databases Visually
+- **MongoDB:** Install MongoDB Compass to browse the `raw_fetches` and `scraped_pages` collections.
+- **SQLite:** Use DB Browser for SQLite or SQLiteStudio to open `ecopulse.sqlite`. SQL Server Management Studio (SSMS) can also view SQLite when paired with an ODBC driver.
+
 ## Troubleshooting
 - **MongoDB unavailable**: Ensure Docker Desktop is running, and rerun `docker compose up -d`. The Data Ops tab will show Mongo status; the scheduler button stays disabled when Mongo is down.
 - **Port 27017 in use**: Stop other MongoDB instances or change the port mapping in `docker-compose.yml`.
