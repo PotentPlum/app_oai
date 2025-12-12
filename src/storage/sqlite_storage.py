@@ -1,14 +1,22 @@
+"""SQLite persistence layer for curated EcoPulse data."""
+
 import sqlite3
 from contextlib import closing
 from typing import Iterable, List, Optional, Tuple
+import logging
 
 from src.config import config
 
+logger = logging.getLogger(__name__)
+
 
 class SQLiteStorage:
+    """Encapsulates schema management and upserts for the SQLite database."""
+
     def __init__(self) -> None:
         self.conn = sqlite3.connect(config.SQLITE_FILE, check_same_thread=False)
         self.conn.execute("PRAGMA journal_mode=WAL;")
+        logger.info("Opened SQLite database at %s", config.SQLITE_FILE)
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -78,6 +86,8 @@ class SQLiteStorage:
         self._seed_dimensions()
 
     def _seed_dimensions(self) -> None:
+        """Ensure core dimension tables contain the configured metadata."""
+
         with closing(self.conn.cursor()) as cur:
             cur.executemany(
                 "INSERT OR IGNORE INTO dim_region(region_code, region_name) VALUES (?, ?)",
@@ -100,6 +110,8 @@ class SQLiteStorage:
             self.conn.commit()
 
     def update_location_wiki(self, location_key: str, title: Optional[str], summary: Optional[str]) -> None:
+        """Store parsed Wikipedia metadata for a location."""
+
         with closing(self.conn.cursor()) as cur:
             cur.execute(
                 "UPDATE dim_location SET wiki_title=?, wiki_summary=? WHERE location_key=?",
@@ -107,7 +119,24 @@ class SQLiteStorage:
             )
             self.conn.commit()
 
-    def upsert_env_hourly(self, rows: Iterable[Tuple[str, str, Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]]) -> None:
+    def upsert_env_hourly(
+        self,
+        rows: Iterable[
+            Tuple[
+                str,
+                str,
+                Optional[float],
+                Optional[float],
+                Optional[float],
+                Optional[float],
+                Optional[float],
+                Optional[float],
+                Optional[float],
+            ]
+        ],
+    ) -> None:
+        """Insert or update hourly environment facts in bulk."""
+
         with closing(self.conn.cursor()) as cur:
             cur.executemany(
                 """
@@ -127,6 +156,8 @@ class SQLiteStorage:
             self.conn.commit()
 
     def upsert_macro(self, rows: Iterable[Tuple[str, str, int, Optional[float]]]) -> None:
+        """Insert or update macro facts."""
+
         with closing(self.conn.cursor()) as cur:
             cur.executemany(
                 """
@@ -140,6 +171,8 @@ class SQLiteStorage:
             self.conn.commit()
 
     def log_run(self, started: str, finished: Optional[str], ok: bool, message: str) -> None:
+        """Record a top-level fetch session."""
+
         with closing(self.conn.cursor()) as cur:
             cur.execute(
                 "INSERT INTO fetch_run_log(started_at_utc, finished_at_utc, ok, message) VALUES (?, ?, ?, ?)",
@@ -156,6 +189,8 @@ class SQLiteStorage:
         message: str,
         item_count: int,
     ) -> None:
+        """Record the outcome of a single data source execution."""
+
         with closing(self.conn.cursor()) as cur:
             cur.execute(
                 """
@@ -167,6 +202,8 @@ class SQLiteStorage:
             self.conn.commit()
 
     def latest_source_runs(self, limit: int = 50):
+        """Fetch recent source executions for display in the UI."""
+
         with closing(self.conn.cursor()) as cur:
             cur.execute(
                 """

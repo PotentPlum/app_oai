@@ -1,20 +1,32 @@
+"""Fetch hourly environment metrics from the Open-Meteo API."""
+
 from datetime import datetime, timezone
 from typing import List
+import logging
 
 from src.config import config
 from src.sources.base import DataSource, RawFetchResult, _do_request
 
+logger = logging.getLogger(__name__)
+
 
 class OpenMeteoSource(DataSource):
+    """Pull weather and air-quality payloads for each configured location."""
+
     name = "open-meteo"
 
     def fetch(self) -> List[RawFetchResult]:
+        """Fetch both weather and air payloads for every tracked location."""
+
         results: List[RawFetchResult] = []
         for loc in config.LOCATIONS:
+            logger.info("Fetching Open-Meteo data for %s", loc.key)
             results.extend(self._fetch_for_location(loc.key, loc.lat, loc.lon))
         return results
 
     def _fetch_for_location(self, location_key: str, lat: float, lon: float) -> List[RawFetchResult]:
+        """Request hourly weather and air quality for a single location."""
+
         now = datetime.now(timezone.utc).isoformat()
         outputs: List[RawFetchResult] = []
 

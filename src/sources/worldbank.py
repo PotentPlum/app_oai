@@ -1,20 +1,32 @@
+"""World Bank macro-economic data source."""
+
 from datetime import datetime, timezone
 from typing import List
+import logging
 
 from src.config import config
 from src.sources.base import DataSource, RawFetchResult, _do_request
 
+logger = logging.getLogger(__name__)
+
 
 class WorldBankSource(DataSource):
+    """Download annual macro indicators for the configured regions."""
+
     name = "worldbank"
 
     def fetch(self) -> List[RawFetchResult]:
+        """Collect the configured World Bank indicators in one pass."""
+
         results: List[RawFetchResult] = []
         for indicator in config.WB_INDICATORS.keys():
+            logger.info("Fetching World Bank indicator %s", indicator)
             results.append(self._fetch_indicator(indicator))
         return results
 
     def _fetch_indicator(self, indicator: str) -> RawFetchResult:
+        """Fetch a single indicator for all supported regions."""
+
         now = datetime.now(timezone.utc).isoformat()
         url = f"https://api.worldbank.org/v2/country/NLD;EUU;USA;WLD/indicator/{indicator}"
         params = {"format": "json", "per_page": 5000}

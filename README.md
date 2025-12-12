@@ -37,6 +37,27 @@ EcoPulse Dashboard is a local Tkinter application that fetches environmental and
 
 Data flow: sources fetch -> raw logged to MongoDB -> transform writes curated tables in SQLite -> UI reads SQLite.
 
+## Working in a Modular, Debuggable Way
+- **Entry point (`main.py`)** wires logging, the `AppService`, and the Tkinter UI. Set `LOG_LEVEL=DEBUG` before launching to see per-request details.
+- **Configuration (`src/config/config.py`)** centralizes locations, indicators, timeouts, and scheduler defaults. Update here to change tracked regions without touching business logic.
+- **Sources (`src/sources/`)** each implement `DataSource.fetch()` and are kept intentionally small. Use their docstrings to understand what payloads they emit and rely on `src/sources/base._do_request` for consistent retries and logging.
+- **Transforms (`src/transform/`)** house the data-shaping logic from raw payloads into SQLite facts. Each function documents the assumptions it makes about payload structure.
+- **Storage (`src/storage/`)** cleanly separates raw Mongo logging (optional) from curated SQLite storage so you can swap or inspect layers independently.
+- **UI (`src/ui/dashboard.py`)** talks only to `AppService`, keeping the view code free of data-fetching logic. This makes it safe to mock `AppService` in isolation for UI debugging.
+
+### Debugging Tips
+- Enable debug logging: `LOG_LEVEL=DEBUG python main.py` to trace HTTP requests, scheduler ticks, and parsing activity.
+- Inspect SQLite: open `ecopulse.sqlite` with DB Browser for SQLite to view dimensions (`dim_*`) and facts (`fact_*`).
+- Inspect Mongo (optional): start the docker-compose stack for MongoDB, then use MongoDB Compass to view `raw_fetches` and `scraped_pages`.
+- Re-run individual stages from a Python shell:
+  ```python
+  from src.app_service import AppService
+  svc = AppService()
+  svc.fetch_environment()  # or fetch_macro(), fetch_wikipedia()
+  ```
+  This avoids launching the UI while you iterate on a specific piece.
+- The scheduler runs inside `AppService`; start/stop it from the Data Ops tab or by calling `svc.start_scheduler()`/`svc.stop_scheduler()` in code.
+
 ## Adding a New Data Source
 1. Create a new file in `src/sources/` that implements `DataSource` from `src/sources/base.py`.
 2. Implement `name` and `fetch()` returning a list of `RawFetchResult`.
