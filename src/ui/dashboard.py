@@ -143,6 +143,39 @@ class Dashboard(tk.Tk):
         self.sqlite_status.pack(fill="x", padx=10)
         self._refresh_db_status()
 
+        interval_frame = ttk.LabelFrame(self.ops_tab, text="Scheduler intervals (minutes)")
+        interval_frame.pack(fill="x", padx=10, pady=5)
+        self.env_interval_min = tk.IntVar(value=int(self.service.env_interval / 60))
+        self.macro_interval_min = tk.IntVar(value=int(self.service.macro_interval / 60))
+        self.wiki_interval_min = tk.IntVar(value=int(self.service.wiki_interval / 60))
+        ttk.Label(interval_frame, text="Environment:").grid(row=0, column=0, padx=5, pady=2)
+        ttk.Spinbox(interval_frame, from_=5, to=24 * 60, textvariable=self.env_interval_min, width=6).grid(
+            row=0, column=1, padx=5
+        )
+        ttk.Label(interval_frame, text="Macro:").grid(row=0, column=2, padx=5, pady=2)
+        ttk.Spinbox(interval_frame, from_=60, to=7 * 24 * 60, textvariable=self.macro_interval_min, width=6).grid(
+            row=0, column=3, padx=5
+        )
+        ttk.Label(interval_frame, text="Wikipedia:").grid(row=0, column=4, padx=5, pady=2)
+        ttk.Spinbox(interval_frame, from_=60, to=14 * 24 * 60, textvariable=self.wiki_interval_min, width=6).grid(
+            row=0, column=5, padx=5
+        )
+        ttk.Button(interval_frame, text="Apply intervals", command=self._apply_intervals).grid(row=0, column=6, padx=5)
+
+        log_frame = ttk.LabelFrame(self.ops_tab, text="Source activity log")
+        log_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        cols = ("source", "started", "finished", "ok", "message", "items")
+        self.source_log = ttk.Treeview(log_frame, columns=cols, show="headings", height=10)
+        for col in cols:
+            self.source_log.heading(col, text=col)
+            self.source_log.column(col, width=120, anchor="w")
+        self.source_log.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.source_log.yview)
+        self.source_log.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        ttk.Button(self.ops_tab, text="Refresh log", command=self._refresh_source_log).pack(anchor="e", padx=10, pady=5)
+        self._refresh_source_log()
+
     def _update_status(self, text: str) -> None:
         if threading.current_thread() is threading.main_thread():
             self._status_var.set(text)
@@ -161,10 +194,28 @@ class Dashboard(tk.Tk):
         if not self.service.mongo.available:
             messagebox.showerror("MongoDB required", "MongoDB is unavailable. Start docker-compose first.")
             return
+        self._apply_intervals()
         self.service.start_scheduler()
 
     def _stop_scheduler(self) -> None:
         self.service.stop_scheduler()
+
+    def _apply_intervals(self) -> None:
+        env_minutes = max(1, self.env_interval_min.get())
+        macro_minutes = max(1, self.macro_interval_min.get())
+        wiki_minutes = max(1, self.wiki_interval_min.get())
+        self.service.update_intervals(env_minutes * 60, macro_minutes * 60, wiki_minutes * 60)
+
+    def _refresh_source_log(self) -> None:
+        self.source_log.delete(*self.source_log.get_children())
+        rows = self.service.sqlite.latest_source_runs(limit=100)
+        for row in rows:
+            source, started, finished, ok, message, count = row
+            self.source_log.insert(
+                "",
+                "end",
+                values=(source, started, finished, "ok" if ok else "fail", message, count),
+            )
 
     def _export_csv(self) -> None:
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])
