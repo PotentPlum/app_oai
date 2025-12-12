@@ -1,21 +1,33 @@
+"""Wikipedia scraper for enriching locations with human-readable summaries."""
+
 from datetime import datetime, timezone
 from typing import List
+import logging
 from bs4 import BeautifulSoup
 
 from src.config import config
 from src.sources.base import ScrapeResult, _do_request
 
+logger = logging.getLogger(__name__)
+
 
 class WikipediaScraper:
+    """Fetch and parse Wikipedia pages for configured locations."""
+
     name = "wikipedia"
 
     def scrape_all(self) -> List[ScrapeResult]:
+        """Scrape each configured location page in sequence."""
+
         results: List[ScrapeResult] = []
         for loc in config.LOCATIONS:
+            logger.info("Scraping Wikipedia for %s", loc.key)
             results.append(self.scrape(loc.wikipedia_url))
         return results
 
     def scrape(self, url: str) -> ScrapeResult:
+        """Download and parse a single Wikipedia page into structured content."""
+
         now = datetime.now(timezone.utc).isoformat()
         resp, error, duration_ms = _do_request(url, {})  # duration used in RawFetch; here unused
         html = resp.text if resp and resp.ok else None
@@ -28,8 +40,10 @@ class WikipediaScraper:
                 para = soup.find("p")
                 summary = para.get_text(strip=True) if para else ""
                 parsed = {"title": title, "summary": summary}
+                logger.debug("Parsed Wikipedia page title=%s", title)
             except Exception as exc:  # noqa: BLE001
                 err = str(exc)
+                logger.exception("Failed to parse Wikipedia page %s", url)
         return ScrapeResult(
             url=url,
             ok=err is None,

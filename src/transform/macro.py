@@ -1,3 +1,5 @@
+"""Transform World Bank payloads into the fact_macro_annual table."""
+
 from typing import List, Tuple
 
 from src.sources.base import RawFetchResult
@@ -5,6 +7,13 @@ from src.storage.sqlite_storage import SQLiteStorage
 
 
 def transform_macro(raw_results: List[RawFetchResult], sqlite_store: SQLiteStorage) -> None:
+    """Flatten indicator payloads into SQLite rows.
+
+    World Bank API responses are arrays where index 1 contains the data list.
+    We defensively parse the content to tolerate occasional empty pages and
+    convert the year value to an integer for consistent sorting in the UI.
+    """
+
     rows: List[Tuple[str, str, int, float]] = []
     for result in raw_results:
         if not result.ok or not result.payload_json:

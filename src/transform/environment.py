@@ -1,3 +1,5 @@
+"""Transform raw Open-Meteo payloads into curated SQLite rows."""
+
 from typing import List, Dict
 
 from src.config import config
@@ -6,6 +8,14 @@ from src.storage.sqlite_storage import SQLiteStorage
 
 
 def transform_environment(raw_results: List[RawFetchResult], sqlite_store: SQLiteStorage) -> None:
+    """Map raw fetches to the ``fact_env_hourly`` table.
+
+    The Open-Meteo responses return separate weather and air-quality payloads
+    per location. We normalize them into a dictionary keyed by timestamp so that
+    temperature and AQI readings land on the same row when available, while
+    still tolerating missing data.
+    """
+
     weather_data: Dict[str, Dict[str, float]] = {}
     air_data: Dict[str, Dict[str, float]] = {}
 

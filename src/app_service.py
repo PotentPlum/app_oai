@@ -1,7 +1,10 @@
+"""Orchestration layer tying sources, storage, and transforms together."""
+
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
+import logging
 
 from src.sources.openmeteo import OpenMeteoSource
 from src.sources.worldbank import WorldBankSource
@@ -12,8 +15,12 @@ from src.transform.environment import transform_environment
 from src.transform.macro import transform_macro
 from src.config import config
 
+logger = logging.getLogger(__name__)
+
 
 class AppService:
+    """Central coordinator used by the UI and automated scheduler."""
+
     def __init__(self) -> None:
         self.mongo = MongoStorage()
         self.sqlite = SQLiteStorage()
@@ -28,19 +35,26 @@ class AppService:
         self.wiki_interval = config.WIKI_REFRESH_INTERVAL
 
     def set_status_callback(self, callback: Callable[[str], None]) -> None:
+        """Register a UI-friendly callback for status updates."""
+
         self._status_callback = callback
 
     def _notify(self, message: str) -> None:
+        """Send a message to the UI layer and log it for debugging."""
+
+        logger.info(message)
         if self._status_callback:
             self._status_callback(message)
 
     def fetch_all(self) -> None:
+        """Fetch all sources in sequence and log aggregate success."""
+
         started = datetime.now(timezone.utc).isoformat()
         self._notify("Running data fetch...")
         ok = True
         try:
-            weather_results = self.fetch_environment()
-            macro_results = self.fetch_macro()
+            self.fetch_environment()
+            self.fetch_macro()
             self.fetch_wikipedia()
             self._notify("Fetch complete")
             self.sqlite.log_run(started, datetime.now(timezone.utc).isoformat(), True, "ok")
@@ -51,6 +65,8 @@ class AppService:
         return ok
 
     def _log_source_run(self, name: str, started: str, ok: bool, message: str, count: int) -> None:
+        """Persist per-source execution metadata for later review."""
+
         self.sqlite.log_source_run(
             source_name=name,
             started=started,
@@ -61,6 +77,8 @@ class AppService:
         )
 
     def fetch_environment(self):
+        """Fetch and transform weather + air quality data."""
+
         started = datetime.now(timezone.utc).isoformat()
         self._notify("Fetching environment data...")
         try:
@@ -75,9 +93,12 @@ class AppService:
         except Exception as exc:  # noqa: BLE001
             self._log_source_run("environment", started, False, str(exc), 0)
             self._notify(f"Environment failed: {exc}")
+            logger.exception("Environment fetch failed")
             raise
 
     def fetch_macro(self):
+        """Fetch and transform macro indicators."""
+
         started = datetime.now(timezone.utc).isoformat()
         self._notify("Fetching macro data...")
         try:
@@ -92,9 +113,12 @@ class AppService:
         except Exception as exc:  # noqa: BLE001
             self._log_source_run("macro", started, False, str(exc), 0)
             self._notify(f"Macro failed: {exc}")
+            logger.exception("Macro fetch failed")
             raise
 
     def fetch_wikipedia(self):
+        """Fetch and persist Wikipedia enrichments."""
+
         started = datetime.now(timezone.utc).isoformat()
         self._notify("Refreshing Wikipedia summaries...")
         try:
@@ -114,6 +138,7 @@ class AppService:
         except Exception as exc:  # noqa: BLE001
             self._log_source_run("wikipedia", started, False, str(exc), 0)
             self._notify(f"Wikipedia failed: {exc}")
+            logger.exception("Wikipedia fetch failed")
             raise
 
     def start_scheduler(self) -> None:

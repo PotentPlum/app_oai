@@ -1,8 +1,11 @@
+"""Tkinter dashboard that visualizes the curated EcoPulse data."""
+
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from datetime import datetime
 import csv
+import logging
 
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -13,8 +16,12 @@ from src.config import config
 
 matplotlib.use("TkAgg")
 
+logger = logging.getLogger(__name__)
+
 
 class Dashboard(tk.Tk):
+    """Simple three-tab UI for data exploration and operations."""
+
     def __init__(self, service: AppService) -> None:
         super().__init__()
         self.title("EcoPulse Dashboard")
@@ -34,6 +41,7 @@ class Dashboard(tk.Tk):
         self.notebook.add(self.macro_tab, text="Macro Compare")
         self.notebook.add(self.ops_tab, text="Data Ops")
 
+        # Build each tab separately to keep layout code modular.
         self._build_env_tab()
         self._build_macro_tab()
         self._build_ops_tab()
