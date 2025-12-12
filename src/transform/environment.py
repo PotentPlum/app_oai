@@ -12,10 +12,10 @@ def transform_environment(raw_results: List[RawFetchResult], sqlite_store: SQLit
     for result in raw_results:
         if not result.ok or not result.payload_json:
             continue
-        source_parts = result.source.split("-")
-        if len(source_parts) < 3:
+        source_parts = result.source.rsplit("-", 2)
+        if len(source_parts) != 3:
             continue
-        _, category, location_key = source_parts[0], source_parts[1], "-".join(source_parts[2:])
+        _, category, location_key = source_parts
         hourly = result.payload_json.get("hourly", {}) if isinstance(result.payload_json, dict) else {}
         times = hourly.get("time", [])
         if category == "weather":

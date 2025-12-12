@@ -17,7 +17,7 @@ class WorldBankSource(DataSource):
     def _fetch_indicator(self, indicator: str) -> RawFetchResult:
         now = datetime.now(timezone.utc).isoformat()
         url = f"https://api.worldbank.org/v2/country/NLD;EUU;USA;WLD/indicator/{indicator}"
-        params = {"format": "json"}
+        params = {"format": "json", "per_page": 5000}
         resp, error, duration_ms = _do_request(url, params)
         payload_json = resp.json() if resp and resp.ok else None
         return RawFetchResult(
