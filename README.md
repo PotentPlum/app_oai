@@ -76,3 +76,15 @@ After adding, update `AppService` to call the new source and create matching tra
 
 ## Running
 See [SETUP_LOCAL.md](SETUP_LOCAL.md) for step-by-step instructions on Windows (Python 3.11+, Docker Desktop required for MongoDB).
+
+## Testing
+- Install dependencies (see setup guide) and ensure MongoDB is running if you want the Mongo tests to execute instead of being skipped.
+- Run the database sanity checks:
+  ```bash
+  python -m unittest discover -s tests -p "test_*.py"
+  ```
+- The suite validates that the SQLite schema is seeded and that inserts/upserts work. MongoDB logging tests are skipped when `pymongo` or MongoDB is unavailable.
+
+## Inspecting Databases Visually
+- **MongoDB:** MongoDB Compass offers a GUI for browsing the `raw_fetches` and `scraped_pages` collections.
+- **SQLite:** DB Browser for SQLite or SQLiteStudio can open `ecopulse.sqlite`. SQL Server Management Studio (SSMS) can also inspect SQLite files with an appropriate ODBC driver if you already use it.
